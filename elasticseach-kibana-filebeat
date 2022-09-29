@@ -1,0 +1,177 @@
+CentOS 8 Stream and ELK installation
+
+System Requirements
+Infra	Memory
+Minimum to install	8 GB RAM
+Minimum recommended	16 GB RAM
+Small deployment	32 GB RAM
+Medium deployment	32 GB RAM
+Large deployment	128 GB RAM
+
+Storage
+Minimum install	10 GB
+
+
+Link to download ISO: http://centos.ufes.br/8-stream/isos/x86_64/CentOS-Stream-8-x86_64-20220831-dvd1.iso
+Note:  Create normal user at the installation OS
+
+
+  
+CentOS 8 and Elasticsearch installation
+Setup static IP Address
+Command: vim /etc/sysconfig/network-scripts/ifcfg-eth0
+Add the following lines at the end of the file
+
+BOOTPROTO=none
+IPADDR=YOUR IPV4 ADDRESS
+NETMASK=YOUR NETMASK
+PREFIX=8/16/24/32 DEPENDS ON YOUR CONFIGURATION
+GATEWAY=YOUR GATEWAY
+
+
+Step 1: Resolve yum dependencies (as root)
+Command: yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+
+
+Step 2:  Update yum repositories (as root)
+Command: yum update
+
+Step 3: Import Elasticsearch GPG Key (as normal user)
+Command: sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+Step 4: Create Elasticsearch repository (as normal user)
+Command: sudo vim /etc/yum.repos.d/elasticsearch.repo
+	Past code: 
+                [elasticsearch]
+                name=Elasticsearch repository for 8.x packages
+                baseurl=https://artifacts.elastic.co/packages/8.x/yum
+                gpgcheck=1
+                gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+                enabled=0
+
+
+Step 5: Install Elasticsearch (as normal user)
+Command: sudo yum install --enablerepo=elasticsearch elasticsearch
+
+Note: After this command, elasticsearch will generate password to access front end page and some commands to create token to kibana and other functionalities.
+
+                            Authentication and authorization are enabled.
+                            TLS for the transport and HTTP layers is enabled and configured.
+
+                            The generated password for the elastic built-in superuser is : 1wUTGAm0Kdddpfjaisyd
+
+                            If this node should join an existing cluster, you can reconfigure this with
+                            '/usr/share/elasticsearch/bin/elasticsearch-reconfigure-node --enrollment-token                                                                                              <token-here>'
+                            after creating an enrollment token on your existing cluster.
+
+                            You can complete the following actions at any time:
+
+                            Reset the password of the elastic built-in superuser with
+                            '/usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic'.
+
+                            Generate an enrollment token for Kibana instances with
+                             '/usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana'.
+                             eyJ2ZXIiOiI4LjQuMSIsImFkciI6WyIxOTIuMTY4LjE4Ny4xMzQ6OTIwMCJdLCJmZ3IiOiJlMmQzNTU5MzlmNzI5MTdiODFhMTE1M2Q1MzU5YTcyNThhM2Y3NzViYjNhZjRmYmZhYzY5MzM1MDYzNWEzNzg5Iiwia2V5IjoidFh2WkVvTUJBWURaS3hYQlVwMTM6b1dsTEhMdXZUaXVwaWgwWHA1MVFBUSJ9
+
+                            Generate an enrollment token for Elasticsearch nodes with
+                            '/usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s node'.
+
+
+Step 6: Allow port 9200 (elasticsearch)
+Command: sudo firewall-cmd –zone=public –permanent –add-port=9200/tcp
+Command: sudo firewall-cmd –reload
+
+Step 7: Reload systemctl daemon
+Command: sudo systemctl daemon-reload
+
+Step 8: Enable elasticsearch when OS is turning on and start service
+Command: sudo systemctl enable –now elasticsearch
+
+Step 9: Open Elasticsearch config file
+Command: sudo vim /etc/elasticsearch/elasticsearch.yml
+Command: :set nu (to numerate lines)
+
+Step 10: Uncomment the following lines
+Line: 17
+Line: 56 (set up your address to connect elasticsearch)
+Line: 61 (you can change the default port but is highly recommended to keep the default)
+
+Step 11: Restart Elasticsearch service
+Command: sudo systemctl restart elasticsearch
+
+
+
+KIBANA INSTALLATION
+Step 1: Create kibana repository
+Command: sudo vim /etc/yum.repos.d/kibana-repo
+  Paste code:
+  
+
+                [kibana-8.x]
+                name=Kibana repository for 8.x packages
+                baseurl=https://artifacts.elastic.co/packages/8.x/yum
+                gpgcheck=1
+                gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+                enabled=1
+                autorefresh=1
+                type=rpm-md
+
+
+
+Step 2: Install Kibana
+Command:  sudo yum install kibana
+
+Step 3: Generate kibana token to access web page
+Command: sudo /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana
+
+Step 4: Allow port 5601 (Kibana)
+Command: firewall-cmd –zone=public –permanent –add-port=5601/tcp
+Command: firewall-cmd –reload
+
+Step 5: Reload daemon
+Command: sudo systemctl daemon-reload
+
+Step 6: Enable kibana when OS is turning on and start service
+Command: sudo systemctl enable –now kibana
+
+Step 7:  Open Kibana config file
+Command: sudo vim /etc/kibana/kibana.yml
+Command: :set nu (to numerate lines)
+
+Step 8: Uncomment the following lines
+Line: 6 (you can change default port but is highly recommended to keep the default)
+Line: 11 (here you can change to your IP to access from web)
+
+Step 9: Restart Kibana service
+Command: sudo systemctl restart kibana
+
+
+FILEBEAT INSTALL
+Step 1: Install Filebeat
+Command: sudo yum install filebeat
+
+Step 2: Open Filebeat config file
+Command: sudo vim /etc/filebeat/filebeat.yml
+Command: :set nu (to numerate lines)
+
+Step 3: Uncomment the following files
+Lines:  114 ( change ip to your ip access )
+Lines: 141 ( change ip to your ip access )
+Lines: 148
+Lines:  149 (username “elastic” password “here you must put the default elasticsearch password generated in the installation)
+
+Step 4: Allow port 5044 (filebeat)
+Command: sudo firewall-cmd –zone=public –permanent –add-port=5044/tcp && sudo firewall-cmd –reload
+
+Step 5: Reload daemon
+Command: sudo systemctl daemon-reload
+
+Step 6: Enable kibana when OS is turning on and start service
+Command: sudo systemctl enable –now filebeat
+
+Step 7: Loads the recommended index template for writing to Elasticsearch and deploys the sample dashboards for visualizing the data in Kibana.
+Command: sudo filebeat setup -e
+
+Step 8: Reload filebeat
+Command: sudo systemctl restart filebeat
+
